@@ -274,6 +274,7 @@ top10 <- markers %>%
 #Mentioned before, ZC (normal) has significantly less cells in clusters 0, 2 and 4. 
 #This makes sense as the cell types in these three clusters generally have higher
 #levels of expression when the cell is cancerous. 
+##
 
 rejoin_obj <- RenameIdents(object = rejoin_obj, 
                                   "0" = "T cells",
@@ -312,4 +313,5 @@ final_dimplot <- DimPlot(object = seurat_final,
         label.size = 3,
         repel = TRUE)
 ggsave('final_dimplot_withcelltypes.png', final_dimplot, width = 10, height = 14, units= 'in')
+
 
