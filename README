@@ -1,0 +1,1 @@
+Analyzed scRNAseq data of samples of 3 different conditions: normal, primary pancreatic tumor and liver hepatic metastases. Performed standard pipeline and performed integration via CCA to find conserved markers between all conditions and annotate cell clusters. Data from GSE197177.
