@@ -247,29 +247,31 @@ top10 <- markers %>%
            group_by(cluster_id) %>%  
            top_n(n = 10, wt = avg_fc)
 
+
+
 #Step 10: Attempt cell type identification given marker data. 
 #manually using marker database: PanglaoDB
 
 #cluster 0 : T cells (CD8A, CD8B, CD3G)
-#cluster 1:  Cholangiocytes 
+#cluster 1:  Endocrine cells (MUC5B)
 #cluster 2: T cells (CCR7, ILR7)
 #cluster 3: Acinar cells (GSTA1, GP2)
 #cluster 4: Gamma Delta T Cells (KLRD1)
 #cluster 5: Fibroblasts (SFRP2)
 #cluster 6: Macrophages (CCL18, LPL)
-#cluster 7: Epithelial cells (KRT16, CEACAM5)
+#cluster 7: Endocrine cells (CEACAM5)
 #cluster 8: Acinar Cells (AMY2B)
 #cluster 9: Gamma Delta T Cells (LAIR2)
 #cluster 10: Dendritic Cells (CLEC10A, FCER1A)
 #cluster 11: Dendritic Cells (FOLR2, STAB1)
 #cluster 12: Dendritic Cells (CLEC4E)
-#cluster 13: Germ cells (PBK)
+#cluster 13: MK167+ Cells 
 #cluster 14: Mast Cells (TPSAB1)
 #cluster 15: B-cells (CD79A)
-#cluster 16: Pancreatic stellac cells (RGS5)
+#cluster 16: Endothelial Cells (RGS5)
 #cluster 17: Endothelial Cells (VWF, CDH5)
 #cluster 18: B-cells (IGHV1-24, IGLV2-8)
-#cluster 19: Germ cells (CMTM2)
+#cluster 19: B-cells (E2F2)
 
 #Mentioned before, ZC (normal) has significantly less cells in clusters 0, 2 and 4. 
 #This makes sense as the cell types in these three clusters generally have higher
@@ -278,25 +280,25 @@ top10 <- markers %>%
 
 rejoin_obj <- RenameIdents(object = rejoin_obj, 
                                   "0" = "T cells",
-                                  "1" = "Cholangiocytes",
+                                  "1" = "Endocrine cells",
                                   "2" = "T cells",
                                   "3" = "Acinar cells",
                                   "4" = "Gamma Delta T cells",
                                   "5" = "Fibroblasts",
                                   "6" = "Macrophages",
-                                  "7" = "Epithelial cells",
+                                  "7" = "Endocrine cells",
                                   "8" = "Acinar cells",
                                   "9" = "Gamma Delta T cells",
                                   "10" = "Dendritic cells",
                                   "11" = "Dendritic cells",
                                   "12" = "Dendritic cells",
-                                  "13" = "Germ cells",
+                                  "13" = "MK167+ cells",
                                   "14" = "Mast cells",
                                   "15" = "B-cells",
-                                  "16" = "Pancreatic stellac cells",
+                                  "16" = "Endothelial cells",
                                   "17" = "Endothelial cells", 
                                   "18" = "B-cells", 
-                                  "19" = "Germ cells")
+                                  "19" = "B-cells")
 
 DimPlot(object = rejoin_obj, 
         reduction = "umap.cca", 
