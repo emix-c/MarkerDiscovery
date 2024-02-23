@@ -1,6 +1,5 @@
 #use data set from GSE197177
 #ZC: normal, #YF: primary PDAC tumor, ZY: w/ liver hepatic metastases 
-
 library(Seurat)
 library(tidyverse)
 library(gridExtra)
@@ -10,7 +9,10 @@ library(annotables)
 library(metap)
 library(presto)
 library(cowplot)
+library(patchwork)
+library(ggrepel)
 source("/Users/Emix/Desktop/RNASeq/functions.R") #load functions script 
+
 
 #Step 1: Load in the data of my samples. Each sample will be its own Seurat object. 
 setwd('/Users/Emix/Desktop/RNASeq/GSE197177_RAW')
@@ -247,31 +249,33 @@ top10 <- markers %>%
            group_by(cluster_id) %>%  
            top_n(n = 10, wt = avg_fc)
 
+write.csv(top10, "top10markerspercluster.csv")
+
 
 
 #Step 10: Attempt cell type identification given marker data. 
 #manually using marker database: PanglaoDB
 
-#cluster 0 : T cells (CD8A, CD8B, CD3G)
-#cluster 1:  Endocrine cells (MUC5B)
-#cluster 2: T cells (CCR7, ILR7)
-#cluster 3: Acinar cells (GSTA1, GP2)
-#cluster 4: Gamma Delta T Cells (KLRD1)
+#cluster 0 : T cells (CD8A, CD8B, CD3G) 
+#cluster 1: Ductal cells (MSMB) 
+#cluster 2: T cells (CCR7, ILR7) 
+#cluster 3: Acinar cells (GSTA1, GP2) 
+#cluster 4: NK Cells (KLRD1, TRDC) 
 #cluster 5: Fibroblasts (SFRP2)
-#cluster 6: Macrophages (CCL18, LPL)
-#cluster 7: Endocrine cells (CEACAM5)
+#cluster 6: Macrophages/Monocytes (CCL18, LPL, CHIT1)
+#cluster 7: Ductal cells (KRT16, CEACAM5) 
 #cluster 8: Acinar Cells (AMY2B)
-#cluster 9: Gamma Delta T Cells (LAIR2)
-#cluster 10: Dendritic Cells (CLEC10A, FCER1A)
-#cluster 11: Dendritic Cells (FOLR2, STAB1)
-#cluster 12: Dendritic Cells (CLEC4E)
+#cluster 9: T Cells (TNFRSF4, CTLA4)
+#cluster 10: Dendritic Cells (CD1C, FCER1A) 
+#cluster 11: Macrophages/Monocytes (FOLR2, STAB1)
+#cluster 12: Macrophages/Monocytes (CLEC4E)
 #cluster 13: MK167+ Cells 
 #cluster 14: Mast Cells (TPSAB1)
-#cluster 15: B-cells (CD79A)
-#cluster 16: Endothelial Cells (RGS5)
-#cluster 17: Endothelial Cells (VWF, CDH5)
-#cluster 18: B-cells (IGHV1-24, IGLV2-8)
-#cluster 19: B-cells (E2F2)
+#cluster 15: B-cells (CD79A, VPREB3)  
+#cluster 16: Endothelial Cells (RGS5) 
+#cluster 17: Endothelial Cells (VWF, CDH5)  
+#cluster 18: Plasma cells (IGHV1-24, IGLV2-8) 
+#cluster 19: Plasma cells (MND1, SHCBP1) 
 
 #Mentioned before, ZC (normal) has significantly less cells in clusters 0, 2 and 4. 
 #This makes sense as the cell types in these three clusters generally have higher
@@ -280,25 +284,26 @@ top10 <- markers %>%
 
 rejoin_obj <- RenameIdents(object = rejoin_obj, 
                                   "0" = "T cells",
-                                  "1" = "Endocrine cells",
+                                  "1" = "Ductal cells",
                                   "2" = "T cells",
                                   "3" = "Acinar cells",
-                                  "4" = "Gamma Delta T cells",
+                                  "4" = "NK cells",
                                   "5" = "Fibroblasts",
-                                  "6" = "Macrophages",
-                                  "7" = "Endocrine cells",
+                                  "6" = "Macrophages/Monocytes",
+                                  "7" = "Ductal cells",
                                   "8" = "Acinar cells",
-                                  "9" = "Gamma Delta T cells",
+                                  "9" = "T cells",
                                   "10" = "Dendritic cells",
-                                  "11" = "Dendritic cells",
-                                  "12" = "Dendritic cells",
+                                  "11" = "Macrophages/Monocytes",
+                                  "12" = "Macrophages/Monocytes",
                                   "13" = "MK167+ cells",
                                   "14" = "Mast cells",
                                   "15" = "B-cells",
                                   "16" = "Endothelial cells",
                                   "17" = "Endothelial cells", 
-                                  "18" = "B-cells", 
-                                  "19" = "B-cells")
+                                  "18" = "Plasma cells", 
+                                  "19" = "Plasma cells")
+
 
 DimPlot(object = rejoin_obj, 
         reduction = "umap.cca", 
@@ -308,9 +313,8 @@ DimPlot(object = rejoin_obj,
 #removing 20 and 21 b/c not enough cells for analysis 
 seurat_final <- subset(rejoin_obj, idents = c('20', '21'), invert = TRUE) 
 
+seurat_final@meta.data$celltype <- Idents(seurat_final)
 
-
-#DoHeatmap(object = rejoin_obj, genes.use = top10$gene, slim.col.label = TRUE, remove.key = TRUE)
 
 final_dimplot <- DimPlot(object = seurat_final, 
         reduction = "umap.cca", 
@@ -320,4 +324,132 @@ final_dimplot <- DimPlot(object = seurat_final,
 ggsave('final_dimplot_withcelltypes.png', final_dimplot, width = 10, height = 14, units= 'in')
 
 
+#Step 11: Compare the samples across conditions and perform differential expression analysis for specific cell type between conditions
 
+#for ZY vs YF: do psuedobulk analysis , ZC has only 1 sample 
+bulk <- AggregateExpression(seurat_final, return.seurat = T, slot = "counts", assays = "RNA", group.by = c("Type",
+                                                                                                     "Patient", "celltype"))
+tail(Cells(bulk))
+
+#T-cells
+t.bulk <- subset(bulk, celltype == "T cells")
+Idents(t.bulk) <- "Type"
+Tcell.de.bulk <- FindMarkers(t.bulk, ident.1 = "ZY", ident.2 = "YF", slot = "counts", test.use = "DESeq2",
+                          verbose = F)
+Tcell.de.bulk$gene <- rownames(Tcell.de.bulk)
+tcell_de <- ggplot(Tcell.de.bulk, aes(avg_log2FC, -log10(p_val))) + geom_point(size = 0.5, alpha = 0.5) + theme_bw() +
+  ylab("-log10(unadjusted p-value)") + geom_text_repel(aes(label = ifelse(p_val_adj < 0.05, gene,
+                                                                          "")), colour = "red", size = 3)
+ggsave("Tcell_DE.png", tcell_de, width = 10, height = 10, units = "in") 
+
+#Ductal cells 
+duct.bulk <- subset(bulk, celltype == "Ductal cells")
+Idents(duct.bulk) <- "Type"
+duct.de.bulk <- FindMarkers(duct.bulk, ident.1 = "ZY", ident.2 = "YF", slot = "counts", test.use = "DESeq2",
+                             verbose = F)
+duct.de.bulk$gene <- rownames(duct.de.bulk)
+duct_de <- ggplot(duct.de.bulk, aes(avg_log2FC, -log10(p_val))) + geom_point(size = 0.5, alpha = 0.5) + theme_bw() +
+  ylab("-log10(unadjusted p-value)") + geom_text_repel(aes(label = ifelse(p_val_adj < 0.05, gene,
+                                                                          "")), colour = "red", size = 3)
+ggsave("Ductal_DE.png", duct_de, width = 10, height = 10, units = "in") 
+
+#Acinar cells 
+acin.bulk <- subset(bulk, celltype == "Acinar cells")
+Idents(acin.bulk) <- "Type"
+acin.de.bulk <- FindMarkers(acin.bulk, ident.1 = "ZY", ident.2 = "YF", slot = "counts", test.use = "DESeq2",
+                            verbose = F)
+acin.de.bulk$gene <- rownames(acin.de.bulk)
+acin_de <- ggplot(acin.de.bulk, aes(avg_log2FC, -log10(p_val))) + geom_point(size = 0.5, alpha = 0.5) + theme_bw() +
+  ylab("-log10(unadjusted p-value)") + geom_text_repel(aes(label = ifelse(p_val_adj < 0.05, gene,
+                                                                          "")), colour = "red", size = 3)
+ggsave("Acinar_DE.png", acin_de, width = 10, height = 10, units = "in")
+
+#Fibroblasts 
+fib.bulk <- subset(bulk, celltype == "Fibroblasts")
+Idents(fib.bulk) <- "Type"
+fib.de.bulk <- FindMarkers(fib.bulk, ident.1 = "ZY", ident.2 = "YF", slot = "counts", test.use = "DESeq2",
+                            verbose = F)
+fib.de.bulk$gene <- rownames(fib.de.bulk)
+fib_de <- ggplot(fib.de.bulk, aes(avg_log2FC, -log10(p_val))) + geom_point(size = 0.5, alpha = 0.5) + theme_bw() +
+  ylab("-log10(unadjusted p-value)") + geom_text_repel(aes(label = ifelse(p_val_adj < 0.05, gene,
+                                                                          "")), colour = "red", size = 3)
+ggsave("Fibroblast_DE.png", fib_de, width = 10, height = 10, units = "in")
+
+#Macrophages/Monocytes
+mac.bulk <- subset(bulk, celltype == "Macrophages/Monocytes")
+Idents(mac.bulk) <- "Type"
+mac.de.bulk <- FindMarkers(mac.bulk, ident.1 = "ZY", ident.2 = "YF", slot = "counts", test.use = "DESeq2",
+                           verbose = F)
+mac.de.bulk$gene <- rownames(mac.de.bulk)
+mac_de <- ggplot(mac.de.bulk, aes(avg_log2FC, -log10(p_val))) + geom_point(size = 0.5, alpha = 0.5) + theme_bw() +
+  ylab("-log10(unadjusted p-value)") + geom_text_repel(aes(label = ifelse(p_val_adj < 0.05, gene,
+                                                                          "")), colour = "red", size = 3)
+ggsave("MacrophagesMonocytes_DE.png", mac_de, width = 10, height = 10, units = "in")
+
+#Dendritic cells 
+den.bulk <- subset(bulk, celltype == "Dendritic cells")
+Idents(den.bulk) <- "Type"
+den.de.bulk <- FindMarkers(den.bulk, ident.1 = "ZY", ident.2 = "YF", slot = "counts", test.use = "DESeq2",
+                           verbose = F)
+den.de.bulk$gene <- rownames(den.de.bulk)
+den_de <- ggplot(den.de.bulk, aes(avg_log2FC, -log10(p_val))) + geom_point(size = 0.5, alpha = 0.5) + theme_bw() +
+  ylab("-log10(unadjusted p-value)") + geom_text_repel(aes(label = ifelse(p_val_adj < 0.05, gene,
+                                                                          "")), colour = "red", size = 3)
+ggsave("Dendritic_DE.png", den_de, width = 10, height = 10, units = "in")
+
+#MK167+ cells 
+mk167.bulk <- subset(bulk, celltype == "MK167+ cells")
+Idents(mk167.bulk) <- "Type"
+mk167.de.bulk <- FindMarkers(mk167.bulk, ident.1 = "ZY", ident.2 = "YF", slot = "counts", test.use = "DESeq2",
+                           verbose = F)
+mk167.de.bulk$gene <- rownames(mk167.de.bulk)
+mkI67_de <- ggplot(mk167.de.bulk, aes(avg_log2FC, -log10(p_val))) + geom_point(size = 0.5, alpha = 0.5) + theme_bw() +
+  ylab("-log10(unadjusted p-value)") + geom_text_repel(aes(label = ifelse(p_val_adj < 0.05, gene,
+                                                                          "")), colour = "red", size = 3)
+ggsave("MKI67_DE.png", mkI67_de, width = 10, height = 10, units = "in")
+
+#Mast cells 
+mast.bulk <- subset(bulk, celltype == "Mast cells")
+Idents(mast.bulk) <- "Type"
+mast.de.bulk <- FindMarkers(mast.bulk, ident.1 = "ZY", ident.2 = "YF", slot = "counts", test.use = "DESeq2",
+                             verbose = F)
+mast.de.bulk$gene <- rownames(mast.de.bulk)
+mast_de <- ggplot(mast.de.bulk, aes(avg_log2FC, -log10(p_val))) + geom_point(size = 0.5, alpha = 0.5) + theme_bw() +
+  ylab("-log10(unadjusted p-value)") + geom_text_repel(aes(label = ifelse(p_val_adj < 0.05, gene,
+                                                                          "")), colour = "red", size = 3)
+ggsave("Mast_DE.png", mast_de, width = 10, height = 10, units = "in")
+
+#B-cells 
+b.bulk <- subset(bulk, celltype == "B-cells")
+Idents(b.bulk) <- "Type"
+b.de.bulk <- FindMarkers(b.bulk, ident.1 = "ZY", ident.2 = "YF", slot = "counts", test.use = "DESeq2",
+                            verbose = F)
+b.de.bulk$gene <- rownames(b.de.bulk)
+b_de <- ggplot(b.de.bulk, aes(avg_log2FC, -log10(p_val))) + geom_point(size = 0.5, alpha = 0.5) + theme_bw() +
+  ylab("-log10(unadjusted p-value)") + geom_text_repel(aes(label = ifelse(p_val_adj < 0.05, gene,
+                                                                          "")), colour = "red", size = 3)
+ggsave("Bcells_DE.png", b_de, width = 10, height = 10, units = "in")
+
+#Endothelial cells 
+endo.bulk <- subset(bulk, celltype == "Endothelial cells")
+Idents(endo.bulk) <- "Type"
+endo.de.bulk <- FindMarkers(endo.bulk, ident.1 = "ZY", ident.2 = "YF", slot = "counts", test.use = "DESeq2",
+                         verbose = F)
+endo.de.bulk$gene <- rownames(endo.de.bulk)
+endo_de <- ggplot(endo.de.bulk, aes(avg_log2FC, -log10(p_val))) + geom_point(size = 0.5, alpha = 0.5) + theme_bw() +
+  ylab("-log10(unadjusted p-value)") + geom_text_repel(aes(label = ifelse(p_val_adj < 0.05, gene,
+                                                                          "")), colour = "red", size = 3)
+ggsave("Endothelial_DE.png", endo_de, width = 10, height = 10, units = "in")
+
+
+#Plasma cells 
+plas.bulk <- subset(bulk, celltype == "Plasma cells")
+Idents(plas.bulk) <- "Type"
+plas.de.bulk <- FindMarkers(plas.bulk, ident.1 = "ZY", ident.2 = "YF", slot = "counts", test.use = "DESeq2",
+                            verbose = F)
+plas.de.bulk$gene <- rownames(plas.de.bulk)
+plas_de <- ggplot(plas.de.bulk, aes(avg_log2FC, -log10(p_val))) + geom_point(size = 0.5, alpha = 0.5) + theme_bw() +
+  ylab("-log10(unadjusted p-value)") + geom_text_repel(aes(label = ifelse(p_val_adj < 0.05, gene,
+                                                                          "")), colour = "red", size = 3)
+
+ggsave("Plasma_DE.png", plas_de, width = 10, height = 10, units = "in")
